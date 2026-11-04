@@ -1,0 +1,73 @@
+local CoolDownTime = 5
+local playersCooldowns = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Ability = ReplicatedStorage.Projectile1
+local remoteEvent = ReplicatedStorage.UseAbility1
+
+local function onEventReceived(player) -- спанв снаряда
+	local character = player.Character
+	if not character then return end
+	local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+	if not humanoidRootPart then return end
+	local userId = player.UserId
+	local currentTime = os.clock()
+	if playersCooldowns[userId] and (currentTime - playersCooldowns[userId]) < CoolDownTime then
+		return 
+	end
+	playersCooldowns[userId] = currentTime
+	local projectileClone = Ability:Clone()
+	local marker = projectileClone.marker
+	local spawnCFrame = humanoidRootPart.CFrame + (humanoidRootPart.CFrame.LookVector * 10)
+	projectileClone:PivotTo(spawnCFrame)
+	projectileClone.Parent = workspace.Projectiles
+	local TweenService = game:GetService("TweenService")
+	local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+	local tween = TweenService:Create(projectileClone.PrimaryPart, tweenInfo, {CFrame = spawnCFrame * CFrame.new(0, 0, -100)})
+	tween:Play()
+
+	task.spawn(function() -- спанв хитбоксов
+		local hitlist = {}
+		while marker and marker.Parent do
+			if not projectileClone:FindFirstChild("PrimaryPart") then break end
+			local currentPosition = projectileClone.PrimaryPart.Position
+			local hitParts = workspace:GetPartBoundsInRadius(currentPosition, 8.656)
+			for _, part in hitParts do
+				local humanoid = part.Parent:FindFirstChildOfClass("Humanoid") or part.Parent.Parent:FindFirstChildOfClass("Humanoid")
+				if humanoid then
+					local enemycharacter = humanoid.Parent
+					if enemycharacter ~= character and not hitlist[enemycharacter] then
+						hitlist[enemycharacter] = true
+						humanoid:TakeDamage(50) 
+					end
+				end
+			end
+			task.wait(0.02)
+		end
+		hitlist = nil
+	end)
+
+
+	tween.Completed:Connect(function() -- Взрыв снаряда
+		marker:Destroy()
+		local fire = projectileClone.LargeFire.FireParticle
+		fire.Enabled = false
+		local explodepart = projectileClone.explode
+		local explodesound = explodepart.explode
+		explodesound.Looped = false
+		explodesound:Play()
+		explodepart.Transparency = 0
+		local tweenInfo1 = TweenInfo.new(0.5 , Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+		local tweenInfo2 = TweenInfo.new(0.5 , Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+		local tween1 = TweenService:Create(explodepart, tweenInfo1, {Size = Vector3.new(15, 15, 15)})
+		local tween2 = TweenService:Create(explodepart, tweenInfo2, {Transparency = 1})
+		tween1:Play()
+		tween2:Play()
+		explodesound.Ended:Connect(function()
+			projectileClone:Destroy()
+		end)
+	end)
+	local event = ReplicatedStorage.Ability1Cooldown
+	event:FireClient(player)
+end
+
+remoteEvent.OnServerEvent:Connect(onEventReceived)
