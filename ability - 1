@@ -1,0 +1,31 @@
+----- КЕЙ -----
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Event = ReplicatedStorage:WaitForChild("UseAbility1")
+local UserInputService = game:GetService("UserInputService")
+
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed) -- активация способности
+		if gameProcessed then return end
+		if input.KeyCode == Enum.KeyCode.E  then
+			Event:FireServer()
+		end
+end)
+
+----- КД -----
+
+local Event1 = ReplicatedStorage:WaitForChild("Ability1Cooldown")
+local PlayerGui = game.Players.LocalPlayer.PlayerGui
+local ScreenGui = PlayerGui:WaitForChild("ScreenGui")
+local Frame = PlayerGui.ScreenGui:WaitForChild("FireBall")
+local cooldown = Frame.Cooldown
+
+
+local function onEventReceived() -- отоброжение кд
+	local tweenService = game:GetService("TweenService")
+	cooldown.Size = UDim2.fromScale(0, 1)
+	local tweeninfo = TweenInfo.new(4.9, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 0)
+	local tween = tweenService:Create(cooldown, tweeninfo, {Size = UDim2.fromScale(1, 1)})
+	tween:Play()
+end
+
+Event1.OnClientEvent:Connect(onEventReceived)
