@@ -1,0 +1,41 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+
+local playSoundEvent = ReplicatedStorage.Events.NVscreen
+local screenon = ReplicatedStorage.Events.NVon
+local screenoff = ReplicatedStorage.Events.NVoff
+local Sound = SoundService.ToggleNV
+
+local player = Players.LocalPlayer
+local screen = player.PlayerGui:WaitForChild("Nvscreen"):WaitForChild("NVglow")
+local nv = Lighting:WaitForChild("NV")
+
+playSoundEvent.OnClientEvent:Connect(function()
+	Sound.TimePosition = 0
+	Sound:Play()
+end)
+
+screenon.OnClientEvent:Connect(function()
+	local fadeIn = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local fadeOut = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+	TweenService:Create(screen, fadeIn, {Transparency = 0}):Play()
+	task.wait(1.2)
+	Lighting.ExposureCompensation = 1.5
+	nv.Enabled = true
+	TweenService:Create(screen, fadeOut, {Transparency = 1}):Play()
+end)
+
+screenoff.OnClientEvent:Connect(function()
+	local fadeIn = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local fadeOut = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+	TweenService:Create(screen, fadeIn, {Transparency = 0}):Play()
+	task.wait(0.5)
+	Lighting.ExposureCompensation = 0
+	nv.Enabled = false
+	TweenService:Create(screen, fadeOut, {Transparency = 1}):Play()
+end)
