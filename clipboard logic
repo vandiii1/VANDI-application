@@ -1,0 +1,162 @@
+----- ОПИСАНИЕ ПЕРЕМЕННЫХ -----
+
+local clickdetector = script.Parent.hitbox.ClickDetector
+local players = game:GetService("Players")
+local paper = script.Parent.Paper
+local handle = script.Parent.Handle
+local ownerofclipboard = nil 
+local isActive = false
+
+-- ТАБЛИЦА для хранения анимаций всех, кто пишет прямо сейчас
+local activeTracks = {} 
+
+-- Список всех меток
+local textLabels = {
+	paper.TEXT1.SurfaceGui.TextLabel,
+	paper.TEXT2.SurfaceGui.TextLabel,
+	paper.TEXT3.SurfaceGui.TextLabel,
+	paper.TEXT4.SurfaceGui.TextLabel,
+	paper.TEXT5.SurfaceGui.TextLabel,
+	paper.TEXT6.SurfaceGui.TextLabel
+}
+
+-- Звуки для подписывающего
+local soundsforWriter = {
+	handle.w1
+}
+
+-- Звуки для владельца
+local soundsforOwner = {
+	handle.s1,
+	handle.s2,
+	handle.s3,
+	handle.s4,
+	handle.s5
+}
+
+-- Анимации
+local idleAnim = handle.forowner.idle
+local askAnim = handle.forowner.ask
+
+local writeAnim = handle.forwriter.write
+
+local animTrack = nil
+
+----- ЛОГИКА -----
+
+local function onEquipped() -- Запуск анимации после экипировки
+	local character = script.Parent.Parent
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if humanoid then
+		local animator = humanoid:FindFirstChildOfClass("Animator")
+		if animator then
+			animTrack = animator:LoadAnimation(idleAnim)
+			animTrack.Looped = true
+			animTrack:Play()
+		end
+	end
+end
+
+local function onUnequipped() -- Остановка анимации после снятия тула
+	if animTrack then
+		animTrack:Stop()
+		animTrack:Destroy()
+		animTrack = nil
+	end
+
+	for _, track in ipairs(activeTracks) do
+		if track then
+			track:Stop()
+			track:Destroy()
+		end
+	end
+	activeTracks = {} -- Полностью очищаем таблицу
+end
+
+clickdetector.MouseClick:Connect(function(player) -- Функция подписи
+	if ownerofclipboard == nil then 
+		local character = script.Parent.Parent
+		ownerofclipboard = players:GetPlayerFromCharacter(character)
+	end
+
+	if player == ownerofclipboard then return end
+
+	for _, track in ipairs(activeTracks) do
+		if track and track.Length > 0 and track:IsA("AnimationTrack") then
+			local animator = track.Parent
+			if animator and animator.Parent and animator.Parent.Name == player.Name then
+				return 
+			end
+		end
+	end
+
+	for i = 1, #textLabels do
+		if textLabels[i].Text == player.Name then
+			return
+		end
+	end
+
+	for i = 1, #textLabels do
+		local label = textLabels[i]
+
+		if label.Text == "-" then
+			local character = player.Character
+			if not character or not character:FindFirstChild("Humanoid") then return end
+
+			local animator = character.Humanoid:FindFirstChildOfClass("Animator")
+			if not animator then return end
+
+			local writeTrack = animator:LoadAnimation(writeAnim)
+
+			table.insert(activeTracks, writeTrack)
+
+			local randomIndex = math.random(1, #soundsforWriter)
+			local randomSound = soundsforWriter[randomIndex]
+
+			writeTrack.Priority = Enum.AnimationPriority.Action
+			writeTrack.Looped = false
+			writeTrack:Play()
+			randomSound:Play()
+
+			label.Text = player.Name
+
+			writeTrack.Stopped:Wait()
+
+			local indexInTable = table.find(activeTracks, writeTrack)
+			if indexInTable then
+				writeTrack:Stop()
+				writeTrack:Destroy()
+				table.remove(activeTracks, indexInTable)
+			end
+			break
+		end
+	end
+end)
+
+script.Parent.Activated:Connect(function() -- Функция просьбы
+	if isActive == true then return end
+	isActive = true
+	local character = script.Parent.Parent
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		local animator = humanoid:FindFirstChildOfClass("Animator")
+		if animator and askAnim then
+			local askTrack = animator:LoadAnimation(askAnim)
+			local randomIndex = math.random(1, #soundsforOwner)
+			local randomSound = soundsforOwner[randomIndex]
+			askTrack.Priority = Enum.AnimationPriority.Action
+			askTrack.Looped = false
+			askTrack:Play()
+			randomSound:Play()
+
+			askTrack.Stopped:Connect(function()
+				isActive = false
+				askTrack:Destroy()
+			end)
+		end
+	end
+end)
+
+script.Parent.Equipped:Connect(onEquipped)
+script.Parent.Unequipped:Connect(onUnequipped)
