@@ -1,3 +1,6 @@
+
+----- ОПИСАНИЕ ПЕРЕМЕННЫХ -----
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
@@ -13,12 +16,14 @@ local player = Players.LocalPlayer
 local screen = player.PlayerGui:WaitForChild("Nvscreen"):WaitForChild("NVglow")
 local nv = Lighting:WaitForChild("NV")
 
-playSoundEvent.OnClientEvent:Connect(function()
+----- ЛОГИКА -----
+
+playSoundEvent.OnClientEvent:Connect(function() -- Звук при включении пнв
 	Sound.TimePosition = 0
 	Sound:Play()
 end)
 
-screenon.OnClientEvent:Connect(function()
+screenon.OnClientEvent:Connect(function() -- Включение пнв
 	local fadeIn = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local fadeOut = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -29,7 +34,7 @@ screenon.OnClientEvent:Connect(function()
 	TweenService:Create(screen, fadeOut, {Transparency = 1}):Play()
 end)
 
-screenoff.OnClientEvent:Connect(function()
+screenoff.OnClientEvent:Connect(function() -- Отключение пнв
 	local fadeIn = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local fadeOut = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
