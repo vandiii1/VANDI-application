@@ -1,0 +1,210 @@
+
+----- ОПИСАНИЕ ПЕРЕМЕННЫХ -----
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+
+local Events = ReplicatedStorage:WaitForChild("Events", 10)
+
+local NVEvent = Events:WaitForChild("NVsystem", 10)
+local FlashLightEvent = Events:WaitForChild("FlashLightPlayer", 10)
+local SoundEvent  = Events:WaitForChild("NVscreen", 10)
+local screenon    = Events:WaitForChild("NVon", 10)
+local screenoff   = Events:WaitForChild("NVoff", 10)
+
+local anims = ServerStorage:WaitForChild("Animations", 10):WaitForChild("ForPlayer", 10)
+local animNVup = anims:WaitForChild("NVup", 10)
+local animNVdown = anims:WaitForChild("NVdown", 10)
+local animFlashLightToggle = anims:WaitForChild("FlashLightToggle", 10)
+
+local NV_COOLDOWN = 1.5
+local FLASHLIGHT_COOLDOWN = 0.7
+
+local startColor  = BrickColor.new("Really black").Color
+local targetColor = BrickColor.new("Parsley green").Color
+
+local tweenInfo = TweenInfo.new(
+	0.5,
+	Enum.EasingStyle.Quad,
+	Enum.EasingDirection.Out
+)
+
+local defaultCFrames = {}
+local lastNV         = {}
+local lastFlashLight = {}
+
+----- ФУНКЦИИ -----
+
+local function getNVData(player) -- Поиск всех моделей для ПНВ
+	local character = player.Character
+	if not character then return end
+
+	local head = character:FindFirstChild("Head")
+	if not head then return end
+	
+	local Humanoid = character:FindFirstChild("Humanoid")
+	if not Humanoid then return end
+
+	local nvMotor = head:FindFirstChild("NV")
+	if not nvMotor or not nvMotor:IsA("Motor6D") then return end
+
+	local helmet = character:FindFirstChild("Helmet")
+	if not helmet then return end
+
+	local nvmodel = helmet:FindFirstChild("NightVision")
+	if not nvmodel then return end
+
+	local nv = nvmodel:FindFirstChild("nv")
+	if not nv then return end
+
+	local middle = nv:FindFirstChild("Middle")
+	if not middle then return end
+
+	local Lins = nv:FindFirstChild("Lins")
+	if not Lins then return end
+
+	local sound = middle:FindFirstChild("armsound")
+	if not sound then return end
+
+	local useValue = middle:FindFirstChild("use")
+	if not useValue then return end
+
+	return nvMotor, useValue, Lins, sound, Humanoid
+end
+
+NVEvent.OnServerEvent:Connect(function(player) -- Экипировка ПНВ
+	local now = os.clock()
+	if lastNV[player] and now - lastNV[player] < NV_COOLDOWN then
+		return
+	end
+	lastNV[player] = now
+
+	local nvMotor, useValue, Lins, sound, Humanoid = getNVData(player)
+	if not nvMotor then return end
+	
+	local animator = Humanoid:WaitForChild("Animator") 
+	local NVup = animator:LoadAnimation(animNVup)
+	local NVdown = animator:LoadAnimation(animNVdown)
+	NVup.Looped, NVdown.Looped = false, false
+
+	if not defaultCFrames[player] then
+		defaultCFrames[player] = nvMotor.C0
+	end
+	local startingCFrame = defaultCFrames[player]
+
+	if useValue.Value == false then
+		useValue.Value = true
+
+		TweenService:Create(Lins, tweenInfo, {Color = targetColor}):Play()
+		sound:Play()
+
+		TweenService:Create(nvMotor, tweenInfo, {
+			C0 = startingCFrame * CFrame.Angles(math.rad(-70), 0, 0)
+		}):Play()
+		NVdown:play()
+
+		screenon:FireClient(player)
+
+		task.delay(1, function()
+			if player.Parent and useValue.Parent and useValue.Value == true then
+				SoundEvent:FireClient(player)
+			end
+		end)
+
+	else
+		useValue.Value = false
+
+		TweenService:Create(Lins, tweenInfo, {Color = startColor}):Play()
+		sound:Play()
+
+		TweenService:Create(nvMotor, tweenInfo, {
+			C0 = startingCFrame
+		}):Play()
+		NVup:play()
+
+		screenoff:FireClient(player)
+	end
+end)
+
+local function getFlashLightData(player) -- Поиск всех моделей для фонарика
+	local character = player.Character
+	if not character then return end
+	
+	local Humanoid = character:FindFirstChild("Humanoid")
+	if not Humanoid then return end
+
+	local helmet = character:FindFirstChild("Helmet")
+	if not helmet then return end
+
+	local flashlight = helmet:FindFirstChild("Flashlight")
+	if not flashlight then return end
+
+	local light = flashlight:FindFirstChild("Light")
+	if not light then return end
+
+	local beam = light:FindFirstChild("Beam")
+	if not beam then return end
+
+	local UseValue = flashlight:FindFirstChild("UseValue")
+	if not UseValue then return end
+	
+	local spotlight = light:FindFirstChild("SpotLight")
+	if not spotlight then return end
+	
+	local sound = light:FindFirstChild("Sound")
+
+	return light, beam, UseValue, spotlight, sound, Humanoid
+end
+
+FlashLightEvent.OnServerEvent:Connect(function(player) -- Экипировка фонарика
+	local now = os.clock()
+	if lastFlashLight[player] and now - lastFlashLight[player] < FLASHLIGHT_COOLDOWN then
+		return
+	end
+	lastFlashLight[player] = now
+
+	local light, beam, UseValue, spotlight, sound, Humanoid = getFlashLightData(player)
+	if not light or not beam or not UseValue or not spotlight or not sound then return end
+	
+	local animator = Humanoid:WaitForChild("Animator") 
+	local FlashLightToggle = animator:LoadAnimation(animFlashLightToggle)
+	FlashLightToggle.Looped = false
+	
+	if UseValue.Value == false then
+		FlashLightToggle:play()
+		UseValue.Value = true
+		light.Color = Color3.fromRGB(255, 255, 255)
+		beam.Enabled = true
+		spotlight.Enabled = true
+		sound:play()
+	else
+		FlashLightToggle:play()
+		UseValue.Value = false
+		light.Color = Color3.fromRGB(0, 0, 0)
+		beam.Enabled = false
+		spotlight.Enabled = false
+		sound:play()
+	end
+end)
+
+local function clearPlayerData(player) -- Очика данных после смерти
+	defaultCFrames[player] = nil
+	lastNV[player] = nil
+	lastFlashLight[player] = nil
+end
+
+Players.PlayerAdded:Connect(function(player) -- Инициализация данных для игрока
+	player.CharacterAdded:Connect(function()
+		defaultCFrames[player] = nil
+	end)
+
+	player.CharacterRemoving:Connect(function()
+		defaultCFrames[player] = nil
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player) -- вызов функции очистки данных 
+	clearPlayerData(player)
+end)
