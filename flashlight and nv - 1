@@ -1,0 +1,39 @@
+
+----- ОПИСАНИЕ ПЕРЕМЕННЫХ -----
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local nvEvent = ReplicatedStorage:WaitForChild("Events", 10):WaitForChild("NVsystem", 10)
+local flashlightEvent = ReplicatedStorage:WaitForChild("Events", 10):WaitForChild("FlashLightPlayer", 10)
+
+local DEBOUNCEforNV = 3
+local DEBOUNCEforFlashLight = 1
+local lastNV, lastFlashLight = 0, 0
+
+----- ЛОГИКА -----
+
+local function NV()
+	local now = os.clock()
+	if now - lastNV < DEBOUNCEforNV then return end
+	lastNV = now
+
+	nvEvent:FireServer()
+end
+
+local function FlashLight()
+	local now = os.clock()
+	if now - lastFlashLight < DEBOUNCEforFlashLight then return end
+	lastFlashLight = now
+	
+	flashlightEvent:FireServer()
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.N then
+		NV()
+	elseif input.KeyCode == Enum.KeyCode.B then
+		FlashLight()
+	end
+end)
